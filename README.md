@@ -1,50 +1,39 @@
 # Proyecto: Obtención de Datos y EDA — Supermercados (Soysuper)
+---
+## 1. Propósito y funcionamiento general del programa
+El proyecto tiene como finalidad automatizar la recolección de datos de productos de supermercado desde **Soysuper** filtrando directamente por **subcategoría** (por ejemplo: *Aceite*, *Leche*, *Queso*, *Yogur*, *Galletas*, *Productos Para Deportistas*, entre otras) para construir un dataset estructurado y reproducible que sirva como base para un **Análisis Exploratorio de Datos (EDA)**.
 
-## Integrantes
-- Isaac Córdova
-- Martín Ramón
+A diferencia de recorrer todo el catálogo o entrar en vistas generales y niveles interiores redundantes, el programa arranca pidiendo al usuario **qué subcategoría desea filtrar** (por número o por nombre/coincidencia). A continuación:
+1. Valida la disponibilidad HTTP de la URL objetivo y consulta `robots.txt` para comprobar si la ruta está permitida.
+2. Abre Google Chrome mediante **Selenium**, acepta el banner de consentimiento si aparece y realiza un **desplazamiento (*scroll*) progresivo hasta el final** controlando el número de productos cargados en el DOM.
+3. Parsea el HTML renderizado con **BeautifulSoup**, extrae los campos de cada ficha de producto, elimina duplicados, numera los registros (`Item`) y exporta el resultado a un archivo `.csv` (`utf-8-sig`) dentro de la `ruta local.
 
-## 1. Objetivo y ámbito
-Análisis exploratorio de productos de supermercado extraídos de **Soysuper** (con foco en **Lácteos y Huevos** y extensible al resto de categorías) para comparar precios totales, precios unitarios y marcas comerciales, complementado con datos nutricionales (Nutri-Score) mediante la API de **Open Food Facts**.
+La integración de la **API de Open Food Facts** para enriquecer los productos con información nutricional (`Nutri-Score`) queda definida como la siguiente etapa del proyecto.
 
-## 2. Obtención de datos
+---
 
-### Fuente 1: Web Scraping — Soysuper
-- **URL base:** `https://soysuper.com/c/lacteos-y-huevos` (y categorías principales del catálogo)
-- **Fecha de extracción:** `2026-11-19`
-- **Revisión legal (`robots.txt`):** Se verificó `https://www.soysuper.com/robots.txt`, confirmando que el acceso a las rutas `/c/...` está permitido para fines académicos sin peticiones masivas.
-- **Procedimiento técnico:**
-  - Automatización con **Selenium** (`webdriver.Chrome()`) para renderizar contenido dinámico en JavaScript y superar la verificación inicial (`#pow`).
-  - Aceptación automática del aviso de consentimiento de cookies.
-  - Recorrido automático por categorías, subcategorías y paginación (`?page=1..N`) con desplazamiento (*scroll*), evitando duplicados y exportando a CSV (`utf-8-sig`) en `C:\Users\Alumno\Desktop\scraping_eda`.
-- **Campos extraídos:** `Item`, `Categoria`, `Subcategoria`, `Marca`, `Producto`, `Precio Total`, `Precio Unitario` y `Fecha Obtencion`.
+## 2. Requisitos previos y librerías necesarias
 
-### Fuente 2: API REST — Open Food Facts *(en integración)*
-- **Endpoint:** `https://es.openfoodfacts.org/` (formato JSON vía `requests`).
-- **Aporte:** Enriquecer el catálogo con la valoración nutricional (`Nutri-Score`).
+### Requisitos del entorno
+- **Python 3.10 o superior**.
+- **Google Chrome** instalado (necesario para la ejecución de `webdriver.Chrome()` en Selenium).
+- **Conexión a Internet** activa para consultar Soysuper y `robots.txt`.
 
-## 3. Estructura del repositorio
-```text
-SCRAPING_EDA/
-├── Productos_lacteos_scrapping.py                # Script principal de extracción
-├── lacteos_y_huevos_todas_subcategorias_raw.csv  # Dataset original extraído
-└── README.md                                     # Documentación del proyecto
+### Librerías externas (instalar con `pip`)
+- **`selenium`**: Automatiza el navegador Google Chrome para ejecutar JavaScript, interactuar con el banner de consentimiento, hacer *scroll* progresivo y recuperar el HTML final una vez cargados los productos dinámicos.
+- **`beautifulsoup4`**: Analiza el HTML renderizado por el navegador y localiza los selectores de cada producto (`li`, `a.name`, `span.price`, `span.brand`, `span.unitprice`).
+- **`pandas`**: Construye el `DataFrame` con los datos extraídos, ordena las columnas, asigna el índice correlativo `Item`, exporta el archivo `.csv` con codificación `utf-8-sig` y formatea la vista resumen en consola.
+- **`requests`**: Realiza las comprobaciones HTTP iniciales contra la URL de la subcategoría y descarga el archivo `robots.txt` antes de iniciar Selenium (y se empleará en la siguiente fase para consumir la API de Open Food Facts).
+- **`matplotlib` y `seaborn`**: Librerías orientadas a la generación de gráficos y visualizaciones estadísticas durante el Análisis Exploratorio de Datos (EDA) sobre los CSV obtenidos.
 
-## 4. Requisitos del Sistema y Instalación de Dependencias
+### Módulos de la biblioteca estándar de Python (incluidos por defecto)
+- **`datetime`**: Obtiene la fecha del sistema en formato `YYYY-MM-DD` para rellenar la columna `Fecha Obtencion`.
+- **`pathlib`**: Maneja rutas de carpetas y archivos de forma limpia y multiplataforma, asegurando la creación y escritura en `C:\Users\Erick Cordova\Desktop\scraping_eda_`.
+- **`time`**: Introduce pausas controladas tras navegar a una URL, pulsar consentimiento o avanzar en el *scroll* para dar margen a la carga del DOM.
+- **`unicodedata`**: Normaliza cadenas de texto (eliminando tildes, pasando a minúsculas y compactando espacios) para interpretar lo que escribe el usuario al elegir subcategoría.
+- **`urllib.parse` y `urllib.robotparser`**: Descomponen la URL objetivo y evalúan las reglas del archivo `robots.txt` frente a la ruta solicitada.
 
-### Requisitos del Sistema
-- **Python 3.10 o superior**
-- **Google Chrome** instalado y actualizado (necesario para el funcionamiento del ChromeDriver con Selenium)
-- **Conexión a Internet** activa para la navegación y peticiones API
-
-### Dependencias de Python
-Las librerías externas que requiere el proyecto y su finalidad son:
-
-- **`selenium` (`>=4.15.0`)**: Control del navegador Chrome, manejo del renderizado dinámico de JavaScript y gestión del aviso de cookies.
-- **`beautifulsoup4` (`>=4.12.0`)**: Parseo del código HTML renderizado de las páginas para extraer etiquetas, títulos y precios rápidamente.
-- **`pandas` (`>=2.0.0`)**: Construcción del `DataFrame`, eliminación de duplicados, ordenación de columnas y exportación a archivos CSV.
-- **`requests` (`>=2.31.0`)**: Realización de peticiones HTTP `GET` a la API REST de Open Food Facts para consumir las respuestas JSON.
-- **`matplotlib` (`>=3.8.0`)** y **`seaborn` (`>=0.13.0`)**: Elaboración de gráficos descriptivos y análisis visual durante el EDA.
-
-*(Nota: Las librerías `datetime`, `pathlib` y `time` forman parte de la biblioteca estándar de Python y no requieren instalación adicional).*
-
+### Instalación de dependencias
+Ejecuta en la terminal de VS Code:
+```bash
+pip install selenium beautifulsoup4 pandas requests matplotlib seaborn
